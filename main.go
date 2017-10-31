@@ -1,59 +1,92 @@
 package main
 
 import (
-	"errors"
-	"fmt"
+	"context"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jgoelen/libreconv/converter"
 )
 
-func main() {
+// DefaultTimeout for converting a document
+const DefaultTimeout = 30 * time.Second
+
+// SetupRouter configures the Gin engine
+func SetupRouter() *gin.Engine {
 	router := gin.Default()
-	router.POST("/to/pdf", func(c *gin.Context) {
-		file, _ := c.FormFile("file")
-		tmpDir, _ := ioutil.TempDir("", "libreconv")
-		defer os.Remove(tmpDir)
-		filePath, _ := filepath.Abs(filepath.Join(tmpDir, file.Filename))
-		err := c.SaveUploadedFile(file, filePath)
-		if err != nil {
-			log.Fatal(err)
-		}
-		pdf, err := convert(tmpDir, filePath)
-		if err != nil {
-			log.Fatal(err)
-		}
-		c.String(http.StatusOK, fmt.Sprintf("Converted '%s' to '%s'", file.Filename, pdf))
-	})
+	// Set a lower memory limit for multipart forms (default is 32 MiB)
+	//router.MaxMultipartMemory = 8 << 20 // 8 MiB
+	router.POST("/to/pdf", convertToPdf)
+	return router
+}
+
+func main() {
+	router := SetupRouter()
 	router.Run(":8080")
 }
 
-func convert(outDir, file string) (string, error) {
-	log.Printf("Convert: %s, out=%s", file, outDir)
-	output, err := exec.Command("soffice", "--headless", "--convert-to", "pdf", "--outdir", outDir, file).Output()
-	log.Printf("Output: %s", output)
+func convertToPdf(c *gin.Context) {
+	tmp, err := ioutil.TempDir("/tmp/", "libreconv")
 	if err != nil {
-		return "", err
+		c.AbortWithError(500, err)
+		return
 	}
-	pdf, err := findPdf(outDir)
+	defer os.Remove(tmp)
+	filePath, err := saveFileToDir(c, tmp)
 	if err != nil {
-		return "", err
+		c.AbortWithError(500, err)
+		return
 	}
-	return filepath.Join(outDir, pdf), nil
+	conv, err := converter.New(filePath)
+	if err != nil {
+		c.AbortWithError(500, err)
+		return
+	}
+	ctx, cancel := createContext(c.Request)
+	defer cancel() // Cancel ctx as soon as handleSearch returns.
+	convertedFile, err := conv.Run(ctx)
+	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			c.AbortWithError(504, err)
+			return
+		}
+		c.AbortWithError(500, err)
+		return
+	}
+	writeFileToResponse(convertedFile, c)
 }
 
-func findPdf(dir string) (string, error) {
-	files, _ := ioutil.ReadDir(dir)
-	for _, file := range files {
-		if strings.HasSuffix(file.Name(), "pdf") {
-			return file.Name(), nil
-		}
+func saveFileToDir(c *gin.Context, dir string) (string, error) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		return "", err
 	}
-	return "", errors.New("No pdf file in directory")
+	filePath, _ := filepath.Abs(filepath.Join(dir, file.Filename))
+	log.Printf("Save file[name=%s, size=%d bytes] to %s", file.Filename, file.Size, filePath)
+	if c.SaveUploadedFile(file, filePath) != nil {
+		return "", err
+	}
+	return filePath, nil
+}
+
+func createContext(request *http.Request) (context.Context, context.CancelFunc) {
+	duration, err := time.ParseDuration(request.FormValue("timeout"))
+	if err == nil {
+		return context.WithTimeout(request.Context(), duration)
+	}
+	return context.WithTimeout(request.Context(), DefaultTimeout)
+}
+
+func writeFileToResponse(filePath string, c *gin.Context) {
+	name := filepath.Base(filePath)
+	c.Header("Content-Description", "File Transfer")
+	c.Header("Content-Transfer-Encoding", "binary")
+	c.Header("Content-Disposition", "attachment; filename="+name)
+	c.Header("Content-Type", "application/octet-stream")
+	c.File(filePath)
 }
