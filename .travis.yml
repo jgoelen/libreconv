@@ -14,3 +14,9 @@ install:
 
 script:
   - curl -XPOST -F "file=@./testdata/example.docx" "http://localhost:8080/to/pdf?timeout=10s" -o /dev/null -v
+
+after_success:
+  - if [ "$TRAVIS_BRANCH" == "master" ]; then
+    docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
+    docker push $DOCKER_USERNAME/libreconv;
+    fi
