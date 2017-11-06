@@ -1,9 +1,11 @@
-language: go
+sudo: required
 
-before_install:
-  - sudo apt-get -qq update
-  - sudo apt-get install -y libreoffice
+services:
+  - docker
 
-go:
-  - 1.9.x
-  - master
+install:
+  - docker build -t libreconv .
+  - docker run -d -p 8080:8080 libreconv
+
+script:
+  - curl -XPOST -F "file=@./testdata/example.docx" "http://localhost:8080/to/pdf?timeout=10s" -o /dev/null -v
