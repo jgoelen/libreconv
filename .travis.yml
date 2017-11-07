@@ -9,7 +9,7 @@ services:
   - docker
 
 install:
-  - docker build -t libreconv .
+  - docker build -t jgoelen/libreconv .
   - docker run -d -p 8080:8080 libreconv
 
 script:
@@ -18,5 +18,5 @@ script:
 after_success:
   - if [ "$TRAVIS_BRANCH" == "master" ]; then
     docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
-    docker push $DOCKER_USERNAME/libreconv;
+    docker push jgoelen/libreconv;
     fi
