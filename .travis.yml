@@ -10,7 +10,7 @@ services:
 
 install:
   - docker build -t jgoelen/libreconv .
-  - docker run -d -p 8080:8080 libreconv
+  - docker run -d -p 8080:8080 jgoelen/libreconv
 
 script:
   - curl -XPOST -F "file=@./testdata/example.docx" "http://localhost:8080/to/pdf?timeout=10s" -o /dev/null -v
