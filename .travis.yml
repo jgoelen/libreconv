@@ -9,8 +9,8 @@ services:
   - docker
 
 install:
-  - docker build -t jgoelen/libreconv .
-  - docker run -d -p 8080:8080 jgoelen/libreconv
+  - docker build -t $DOCKER_USERNAME/libreconv .
+  - docker run -d -p 8080:8080 $DOCKER_USERNAME/libreconv
 
 script:
   - curl -XPOST -F "file=@./testdata/example.docx" "http://localhost:8080/to/pdf?timeout=10s" -o /dev/null -v
@@ -18,5 +18,5 @@ script:
 after_success:
   - if [ "$TRAVIS_BRANCH" == "master" ]; then
     docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
-    docker push jgoelen/libreconv;
+    docker push $DOCKER_USERNAME/libreconv;
     fi
