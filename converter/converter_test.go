@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func test(t *testing.T) {
+func TestMsWordExample(t *testing.T) {
 	inputFile, _ := filepath.Abs(filepath.Join("../testdata", "example.docx"))
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
