@@ -36,7 +36,7 @@ func convertToPdf(c *gin.Context) {
 		c.AbortWithError(500, err)
 		return
 	}
-	defer os.Remove(tmp)
+	defer os.RemoveAll(tmp)
 	filePath, err := saveFileToDir(c, tmp)
 	if err != nil {
 		c.AbortWithError(500, err)
