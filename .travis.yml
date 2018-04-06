@@ -16,7 +16,11 @@ script:
   - curl -XPOST -F "file=@./testdata/example.docx" "http://localhost:8080/to/pdf?timeout=10s" -o /dev/null -v
 
 after_success:
-  - if [[ ("$TRAVIS_BRANCH" == "master") || ("$TRAVIS_BRANCH" == *"."*"."*) ]]; then
+  - if [[ "$TRAVIS_BRANCH" == "master" ]]; then
     docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
+    docker push $DOCKER_USERNAME/libreconv;
+    elif [[ "$TRAVIS_BRANCH" == *"."*"."* ]]; then
+    docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
+    docker tag $DOCKER_USERNAME/libreconv:$COMMIT $DOCKER_USERNAME/libreconv:$TRAVIS_BRANCH
     docker push $DOCKER_USERNAME/libreconv;
     fi
