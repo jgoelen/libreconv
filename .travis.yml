@@ -21,6 +21,6 @@ after_success:
     docker push $DOCKER_USERNAME/libreconv;
     elif [[ "$TRAVIS_BRANCH" == *"."*"."* ]]; then
     docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
-    docker tag $DOCKER_USERNAME/libreconv $DOCKER_USERNAME/libreconv:$TRAVIS_BRANCH
+    docker tag $DOCKER_USERNAME/libreconv $DOCKER_USERNAME/libreconv:$TRAVIS_BRANCH;
     docker push $DOCKER_USERNAME/libreconv;
     fi
